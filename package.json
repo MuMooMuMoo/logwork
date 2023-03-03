@@ -1,0 +1,23 @@
+{
+  "name": "logwork",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup index.js --file bundle.js --format cjs && pkg -t latest-macos-x64 bundle.js -o logwork "
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^10.0.0",
+    "dotenv": "^16.0.3",
+    "luxon": "^3.2.1",
+    "rollup": "^3.17.3"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.0"
+  }
+}
