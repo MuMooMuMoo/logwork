@@ -14,6 +14,10 @@ How to use
 ```
 logwork -c PATH_TO_CONFIG 
 
+logwork task -c ~/repo/logwork/logwork.json  {taskCode} {day} {hours}  
+
+logwork log-standUp -c ~/repo/logwork/logwork.json 2023-04-03
+
 ```
 
 

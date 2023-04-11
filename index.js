@@ -16,10 +16,54 @@ program
   .description('perform log')
   .action(log);
 
+program
+  .command('standUp <dayStr>')
+  .description('log for a day  task')
+  .action(logStandUpCommand);  
+
+  program
+  .command('task <taskID> <day>  <hour>')
+  .description('log for a day  task')
+  .action(logTaskCommand);    
+
+  async function logTaskCommand(taskID,day,hour) {  
+    const config = readConfig(program.opts().config);
+    const token = config.token;
+
+    const isConnected = await checkConncection("https://jira.tdshop.io")
+  
+    if (!isConnected) {
+      console.log("Jira is not connected")
+      return
+    }
+
+    await logWork(token, taskID, hour,DateTime.fromISO(day).toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"),"work on task") 
+
+  }
+
+
+async function logStandUpCommand(dayStr) {  
+  const config = readConfig(program.opts().config);
+  const token = config.token;
+  const standUpTaskId = config.standup;
+  const isConnected = await checkConncection("https://jira.tdshop.io")
+
+  if (!isConnected) {
+    console.log("Jira is not connected")
+    return
+  }
+
+  const day  = DateTime.fromISO(dayStr)
+
+
+   await logStandUp(standUpTaskId, token, 0.5,day.toISODate()); // 
+
+}
+
 async function log() {
   const config = readConfig(program.opts().config);
-  const token = config.token || "NzA2MDA2NTk3NzIyOusNrwhAn6JmllSjXDa3xaunsTns";
-  const standUpTaskId = config.standup || 42543;
+  const token = config.token;
+  const standUpTaskId = config.standup;
   let remainHour = 7;
   console.log(`token ${token} `);
 
@@ -29,16 +73,19 @@ async function log() {
     console.log("Jira is not connected")
     return
   }
-  remainHour = await logStandUp(standUpTaskId, token, remainHour, 0.5); // 
+  await logStandUpForCurrentDate(standUpTaskId, token, 0.5); 
+  remainHour = remainHour - 0.5
+
   const tasks = await fetchAssignTasks(token);
   if (tasks.length != 0) {
     const eachTaskSpendingHour = Math.floor(remainHour / tasks.length)
     for (let task of tasks) {
-      remainHour = await logWork(token, task.id, remainHour, eachTaskSpendingHour)
+       remainHour = remainHour - eachTaskSpendingHour
+       await logWorkForCurrentDate(token, task.id, eachTaskSpendingHour)
     }
   }else{
 
-  await logWork( token,standUpTaskId, remainHour, remainHour,"ad-hoc work"); // log the rest if nothing to do on that day 
+  await logWorkForCurrentDate( token,standUpTaskId, remainHour,"ad-hoc work"); // log the rest if nothing to do on that day 
 
   }
 
@@ -48,7 +95,14 @@ async function log() {
 function readConfig(path) {
   try {
     const rawData = fs.readFileSync(path);
-    return JSON.parse(rawData);
+    const config = JSON.parse(rawData);
+
+    if(config.token && config.standup){
+      return config
+    }else{
+      throw Error("plz specify token and standup task id")
+    }
+   
   } catch (error) {
     console.log("error", error);
     throw Error("Cannot read config file")
@@ -98,9 +152,7 @@ async function fetchAssignTasks(token) {
 
 }
 
-
-async function logStandUp(taskId, token, remainHour, logHour) {
-  const currentDate = DateTime.now().setZone('Asia/Bangkok').toISODate();
+async function logStandUp(taskId, token, logHour,currentDate) {
 
   const url = `https://jira.tdshop.io/rest/api/2/issue/${taskId}/worklog`;
   const body = JSON.stringify({
@@ -108,12 +160,14 @@ async function logStandUp(taskId, token, remainHour, logHour) {
     "comment": "Daily meeting",
     "started": `${currentDate}T09:30:00.000+0700`
   })
-  remainHour = remainHour - logHour
   console.log(`body ${JSON.stringify(body)}`);
   await RequestWorkload(token, body, url);
-  return remainHour;
 
+}
 
+async function logStandUpForCurrentDate(taskId, token, logHour) {
+  const currentDate = DateTime.now().setZone('Asia/Bangkok').toISODate();
+  await logStandUp(taskId,token,logHour,currentDate);
 }
 
 
@@ -134,25 +188,23 @@ async function RequestWorkload(token, body, url) {
   }
 }
 
-async function logWork(token, taskId, remainHour, logHour,comment ="") {
 
-
+async function logWorkForCurrentDate(taskId, token, logHour,comment ="") {
   const currentDate = DateTime.now().setZone('Asia/Bangkok').toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ");
+  await logWork(token,taskId,logHour,currentDate,comment);
+}
+async function logWork(token, taskId, logHour,date,comment) {
+
   const url = `https://jira.tdshop.io/rest/api/2/issue/${taskId}/worklog`;
   const body = JSON.stringify({
     "timeSpent": `${logHour}h`,
     "comment": comment,
-    "started": currentDate
+    "started": date
   })
-
-  remainHour = remainHour - logHour
 
   console.log(`body ${JSON.stringify(body)}`);
 
-
   await RequestWorkload(token, body, url);
-
-  return remainHour;
 
 }
 
