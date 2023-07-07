@@ -16,6 +16,17 @@ program
   .description('perform log')
   .action(log);
 
+  program
+  .command('logForward <day>')
+  .description('log for a number of day  task')
+  .action(logForwardCommand);   
+
+
+  program
+  .command('logBackward <day>')
+  .description('log for a number of day  task')
+  .action(logBackwardCommand);   
+
 program
   .command('standUp <dayStr>')
   .description('log for a day  task')
@@ -25,6 +36,126 @@ program
   .command('task <taskID> <day>  <hour>')
   .description('log for a day  task')
   .action(logTaskCommand);    
+
+
+  async function logForwardCommand(dayStr) {
+    const config = readConfig(program.opts().config);
+    const token = config.token;
+    const standUpTaskId = config.standup;
+    const tasks = config.tasks
+    console.log(`token ${token} `);
+  
+    const isConnected = await checkConncection("https://jira.tdshop.io")
+  
+    if (!isConnected) {
+      console.log("Jira is not connected")
+      return
+    }
+
+    // convert day to number
+    const dayNumber = parseInt(dayStr)
+    let tasksInfo = await getTaskInfo(token,tasks)
+    console.log(tasksInfo)
+
+    for(let i = 0 ; i < dayNumber ; i++){
+      const day = i == 0 ?  DateTime.now().setZone('Asia/Bangkok') : DateTime.now().setZone('Asia/Bangkok').plus({days: i})
+      if(!isWeekend(day)){
+        console.log("log for day ",day.toISODate())
+      await logStandUp(standUpTaskId,token,0.5,day.toISODate());
+      // calculate remain hour also
+      // remainHour = remainHour - 0.5
+      // const tasks = await fetchAssignTasks(token);
+      // if (tasks.length != 0) {
+      //   const eachTaskSpendingHour = Math.floor(remainHour / tasks.length)
+      //   for (let task of tasks) {
+      //      remainHour = remainHour - eachTaskSpendingHour
+      //      await logWorkForCurrentDate(token, task.id, eachTaskSpendingHour)
+      //   }  
+      // }else{ 
+
+      if(tasksInfo.length > 0){
+        
+        // get first task
+        let  { key,estimate } = tasksInfo[0]
+          
+          
+            await logWork(token,key,7.5,day.toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"),"");
+
+            tasksInfo[0].estimate = tasksInfo[0].estimate - 1
+            if(( tasksInfo[0].estimate == 0)){
+              tasksInfo.shift()
+            }
+         
+      }else{
+
+        await logWork(token,standUpTaskId,7.5,day.toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"),"ad-hoc work");
+      }
+      
+      // }
+    }
+    
+
+  }
+
+}
+  //getTaskInfo
+  async function getTaskInfo(token,tasks){
+    let myHeaders = new Headers();
+    myHeaders.append("Accept", "application/json");
+    myHeaders.append("Authorization", `Bearer ${token}`);
+    var requestOptions = {
+      method: 'GET',
+      headers: myHeaders,
+    };
+    var result =[]
+    for(let taskId of tasks){
+      const response = await fetch("https://jira.tdshop.io/rest/api/2/issue/"+taskId, requestOptions)
+    
+      const task = await response.json().catch(error => console.log('error', error));
+    
+      result.push( {
+          "key": task.key,
+          "estimate": Math.ceil(task.fields.timetracking.originalEstimateSeconds/28800),
+        })
+  
+
+    }
+      return result;
+    
+
+  }
+
+
+  async function logBackwardCommand(dayStr) {
+    const config = readConfig(program.opts().config);
+    const token = config.token;
+    const standUpTaskId = config.standup;
+    console.log(`token ${token} `);
+  
+    const isConnected = await checkConncection("https://jira.tdshop.io")
+  
+    if (!isConnected) {
+      console.log("Jira is not connected")
+      return
+    }
+
+    // convert day to number
+
+    const tasks = await fetchAssignTasks(token);
+    for(let i = 0 ; i < dayNumber ; i++){
+      console.log('here')
+      const day =  DateTime.now().setZone('Asia/Bangkok').minus({days: i+1})
+
+      if(!isWeekend(day)){
+      await logStandUp(standUpTaskId,token,0.5,day.toISODate());
+      await logWork(token,standUpTaskId,7.5,day.toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"),"ad-hoc work");
+    
+      }
+      // }
+    }
+    
+    
+  }
 
   async function logTaskCommand(taskID,day,hour) {  
     const config = readConfig(program.opts().config);
@@ -64,7 +195,7 @@ async function log() {
   const config = readConfig(program.opts().config);
   const token = config.token;
   const standUpTaskId = config.standup;
-  let remainHour = 7;
+  let remainHour = 8;
   console.log(`token ${token} `);
 
   const isConnected = await checkConncection("https://jira.tdshop.io")
@@ -82,8 +213,8 @@ async function log() {
     for (let task of tasks) {
        remainHour = remainHour - eachTaskSpendingHour
        await logWorkForCurrentDate(token, task.id, eachTaskSpendingHour)
-    }
-  }else{
+    }  
+  }else{ 
 
   await logWorkForCurrentDate( token,standUpTaskId, remainHour,"ad-hoc work"); // log the rest if nothing to do on that day 
 
@@ -152,6 +283,7 @@ async function fetchAssignTasks(token) {
 
 }
 
+
 async function logStandUp(taskId, token, logHour,currentDate) {
 
   const url = `https://jira.tdshop.io/rest/api/2/issue/${taskId}/worklog`;
@@ -167,7 +299,7 @@ async function logStandUp(taskId, token, logHour,currentDate) {
 
 async function logStandUpForCurrentDate(taskId, token, logHour) {
   const currentDate = DateTime.now().setZone('Asia/Bangkok').toISODate();
-  await logStandUp(taskId,token,logHour,currentDate);
+await logStandUp(taskId,token,logHour,currentDate);
 }
 
 
@@ -189,7 +321,7 @@ async function RequestWorkload(token, body, url) {
 }
 
 
-async function logWorkForCurrentDate(taskId, token, logHour,comment ="") {
+async function logWorkForCurrentDate( token, taskId,logHour,comment ="") {
   const currentDate = DateTime.now().setZone('Asia/Bangkok').toFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZZZ");
   await logWork(token,taskId,logHour,currentDate,comment);
 }
@@ -206,6 +338,11 @@ async function logWork(token, taskId, logHour,date,comment) {
 
   await RequestWorkload(token, body, url);
 
+}
+
+function isWeekend(day) {
+  let today = day.weekday;
+  return (today === 6 || today === 7);
 }
 
 program.parseAsync(process.argv)

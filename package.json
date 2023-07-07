@@ -7,7 +7,7 @@
   "bin": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm logwork && rm bundle.js && rollup index.js --file bundle.js --format cjs && pkg -t latest-macos-x64 bundle.js -o logwork "
+    "build": "rm -f logwork && rm -f bundle.js && rollup index.js --file bundle.js --format cjs && pkg -t latest-macos-x64 bundle.js -o logwork "
   },
   "author": "",
   "license": "ISC",

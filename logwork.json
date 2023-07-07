@@ -1,4 +1,5 @@
 {
     "token":"ODkyNzkzNDMzNTE0OjLPq52/q8Fy6vdWQiKdCmWMAV5z",
-    "standup":"BO-12838"
+    "standup":"BO-14054",
+    "tasks": ["BO-14002","BO-14018"]
 }
