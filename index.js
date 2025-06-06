@@ -140,6 +140,11 @@ program
     }
 
     // convert day to number
+    const dayNumber = parseInt(dayStr, 10);
+    if (isNaN(dayNumber) || dayNumber <= 0) {
+      console.log("Invalid day value");
+      return;
+    }
 
     const tasks = await fetchAssignTasks(token);
     for(let i = 0 ; i < dayNumber ; i++){
